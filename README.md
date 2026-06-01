@@ -1,10 +1,29 @@
-# Wi-Fi CSI Human Presence Detection
+# Wi-Fi CSI Room Occupancy Detection
 
-> Passive RF sensing system for human presence detection using Wi-Fi Channel State Information (CSI) — built on ESP32-C6 hardware.
+> Privacy-preserving passive RF sensing system for room occupancy detection using Wi-Fi Channel State Information (CSI) — built on ESP32-C6 hardware. No camera, no identity, no data leaves the device.
+
 
 ## System Overview
 
-This system uses two ESP32-C6 units (TX and RX) to continuously transmit and receive Wi-Fi signals. When a human enters the sensing area, the multipath propagation of the signal changes, which is captured as variations in the CSI amplitude. A machine learning classifier then determines presence or absence in real time.
+This system uses ESP32-C6 units in a bistatic configuration (TX and RX placed on opposite sides of a room) to continuously monitor Wi-Fi signal propagation. When a person enters or occupies the sensing area between TX and RX, multipath propagation changes are captured as variations in CSI amplitude and packet delivery rate. An on-device ML classifier then determines occupancy state in real time.
+
+**Current output states:** `NO HUMAN` / `HUMAN DETECTED`
+
+**Target output states:** `VACANT` / `STATIC` / `ACTIVE`
+
+### Privacy by Design
+
+All inference runs on-device (SBC). Raw CSI data is never transmitted to external servers. No camera, no microphone, no biometric data.
+
+## Current Performance
+
+Tested in a controlled 3×3 m environment, single TX–RX pair:
+
+- Dataset: 7,000 samples (7 categories × 1,000 samples)
+- Classifier: Random Forest with delta-CSI features
+- Accuracy: 97% (cross-validation mean 98% ±2.7%)
+- Real-time latency: ~3 seconds (30-window majority voting)
+- False positive rate: 0/15 | False negative rate: 1/16
 
 
 ## Hardware Stack
@@ -14,6 +33,10 @@ This system uses two ESP32-C6 units (TX and RX) to continuously transmit and rec
 | ESP32-C6 (TX) | CSI transmitter — Station mode |
 | ESP32-C6 (RX) | CSI receiver — SoftAP mode |
 | USB-Serial | Data streaming to host PC |
+
+## Deployment Geometry
+
+TX and RX must be placed on **opposite sides** of the monitored area. The system operates on bistatic sensing principles — detection sensitivity is highest when the target is within the Fresnel zone between TX and RX.
 
 ## Software Pipeline
 
@@ -68,8 +91,6 @@ https://github.com/user-attachments/assets/d93277cf-716b-4350-8b9f-c59040b73f4f
 
 <img width="1276" height="789" alt="Screenshot 2026-05-17 102648" src="https://github.com/user-attachments/assets/9e6f02f5-90af-4155-8a08-48de7dbfdcba" />
 
-
-
 ## Dataset
 
 Sample CSI data is provided in `data/sample/csi_sample.csv`.
@@ -78,18 +99,21 @@ Full dataset available on request.
 ## Project Status
 
 - [x] CSI data logging via pyserial
-- [x] Baseline calibration
-- [x] ML classifier training (Random Forest)
-- [x] Real-time detection (controlled environment)
-- [ ] Multi-RX AoA estimation
-- [ ] 2D position mapping
+- [x] ML classifier training (Random Forest, 97% accuracy)
+- [x] Baseline calibration (manual trigger, 300 samples) — to be superseded by zero-touch auto-baseline
+- [x] Real-time detection in controlled environment
+- [ ] Packet rate as complementary sensing feature (hypothesis stage)
+- [ ] Calibration-free auto-baseline via GMM/PCA (zero human intervention)
+- [ ] Adaptive threshold per subcarrier (μ + k·σ)
+- [ ] Continuous self-update via Exponential Moving Average
+- [ ] Activity state output: `VACANT` / `STATIC` / `ACTIVE`
+- [ ] Occupancy count estimation (1 person vs multiple)
 
 ## Known Limitations
 
 - System tested in a 3×3 meter room under controlled conditions
 - Detection consistency varies with environmental changes (furniture repositioning, temperature, interference)
 - Classifier requires recalibration when deployed in a new environment
-- Current architecture uses single TX-RX pair; positional accuracy not yet implemented
 
 ## License
 
